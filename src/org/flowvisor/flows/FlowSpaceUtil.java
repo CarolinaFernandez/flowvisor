@@ -172,28 +172,32 @@ public class FlowSpaceUtil {
 		}
 
 		FVConfig.readFromFile(args[0]);
+		System.err.println("-------- REMOVE --------- ARG1=" + args[1]);
 		long dpid = FlowSpaceUtil.parseDPID(args[1]);
+		System.err.println("-------- REMOVE --------- DPID=" + dpid);
 
-		switch (args.length) {
-		case 2:
-			Set<String> slices = FlowSpaceUtil.getSlicesByDPID(
-					FVConfig.getFlowSpaceFlowMap(), dpid);
-			System.out.println("The following slices have access to dpid="
-					+ args[1]);
-			for (String slice : slices)
-				System.out.println(slice);
-			break;
-		case 3:
-			Set<Short> ports = FlowSpaceUtil.getPortsBySlice(dpid, args[2],
-					FVConfig.getFlowSpaceFlowMap());
-			System.out.println("Slice " + args[2] + " on switch " + args[1]
-					+ " has access to port:");
-			if (ports.size() == 1
-					&& ports.contains(Short.valueOf(OFPort.OFPP_ALL.getValue())))
-				System.out.println("ALL PORTS");
-			else
-				for (Short port : ports)
-					System.out.println("Port: " + port);
+		if (dpid > -1) {
+			switch (args.length) {
+			case 2:
+				Set<String> slices = FlowSpaceUtil.getSlicesByDPID(
+						FVConfig.getFlowSpaceFlowMap(), dpid);
+				System.out.println("The following slices have access to dpid="
+						+ args[1]);
+				for (String slice : slices)
+					System.out.println(slice);
+				break;
+			case 3:
+				Set<Short> ports = FlowSpaceUtil.getPortsBySlice(dpid, args[2],
+						FVConfig.getFlowSpaceFlowMap());
+				System.out.println("Slice " + args[2] + " on switch " + args[1]
+						+ " has access to port:");
+				if (ports.size() == 1
+						&& ports.contains(Short.valueOf(OFPort.OFPP_ALL.getValue())))
+					System.out.println("ALL PORTS");
+				else
+					for (Short port : ports)
+						System.out.println("Port: " + port);
+			}
 		}
 
 	}
@@ -288,6 +292,10 @@ public class FlowSpaceUtil {
 	 * @return a dpid
 	 */
 	public static long parseDPID(String dpidStr) {
+		System.err.println("-------- REMOVE --------- DPID=" + dpidStr);
+		if (dpidStr == null) {
+			return Long.valueOf("-1");
+		}
 		if (dpidStr.equals("*") || dpidStr.toLowerCase().equals("any")
 				|| dpidStr.toLowerCase().equals("all")
 				|| dpidStr.toLowerCase().equals("all_dpids"))

@@ -975,8 +975,8 @@ public class FlowSpaceImpl implements FlowSpace {
 					FVLog.log(LogLevel.WARN, null, "Queue insertion failed... siliently.");
 			}
 		} catch (SQLException e) {
-//				System.err.println("---- REMOVE ---- error: " + e);
-				e.printStackTrace();
+				System.err.println("---- REMOVE ---- error: " + e);
+//				e.printStackTrace();
 		} finally {
 			close(set);
 			close(ps);
