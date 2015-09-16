@@ -84,7 +84,7 @@ public class FlowSpaceImpl implements FlowSpace {
 	private static String SACTIONS = "INSERT INTO jFSRSlice(flowspacerule_id, slice_id," + ACTION + ")" +
 			" VALUES(?,?,?)";
 	
-	private static String SLICEID = "SELECT id FROM " + Slice.TSLICE + " WHERE " + Slice.SLICE + " = ?";
+	private static String SLICEID = "SELECT * FROM " + Slice.TSLICE + " WHERE " + Slice.SLICE + " = ?";
 	
 	private static String RESETFLOWTABLE = "ALTER TABLE FlowSpaceRule ALTER COLUMN id RESTART WITH 1";
 	
@@ -226,6 +226,9 @@ public class FlowSpaceImpl implements FlowSpace {
 			int ruleid = -1;
 			int wildcards = -1;
 			for (FlowEntry fe : rules) {
+				System.err.println("---- REMOVE ---- slice name = " + fe.getSliceName());
+				System.err.println("---- REMOVE ---- name = " + fe.getName());
+				System.err.println("---- REMOVE ---- id = " + fe.getUniqueId());
 				wildcards = fe.getRuleMatch().getWildcards();
 				ps = conn.prepareStatement(SFLOWMAP, Statement.RETURN_GENERATED_KEYS);
 				ps.setLong(1, fe.getDpid());
@@ -293,13 +296,19 @@ public class FlowSpaceImpl implements FlowSpace {
 				set = ps.getGeneratedKeys();
 				set.next();
 				ruleid = set.getInt(1);
+				System.err.println("---- REMOVE ---- action (length) = " + fe.getActionsList().size());
 				for (OFAction act : fe.getActionsList()) {
+					System.err.println("---- REMOVE ---- action = " + ((SliceAction) act).getSliceName());
+					System.err.println("---- REMOVE ---- SELECT SLICE ID (query) = " + GSLICEID);
+					System.err.println("......................... " + ((SliceAction) act).getSliceName());
 					slice = conn.prepareStatement(GSLICEID);
 					slice.setString(1, ((SliceAction) act).getSliceName());
 					set = slice.executeQuery();
-					if (set.next())
+					if (set.next()) {
 						sliceid = set.getInt("id");
-					else {
+						System.err.println("---- REMOVE ---- SLICE ID = " + sliceid);
+					} else {
+						System.err.println("---- WARNING. Slice name " + ((SliceAction) act).getSliceName() + " does not exist... skipping.");
 						FVLog.log(LogLevel.WARN, null, "Slice name " + ((SliceAction) act).getSliceName() + " does not exist... skipping.");
 						continue;
 					}
@@ -682,8 +691,14 @@ public class FlowSpaceImpl implements FlowSpace {
 	@Override
 	public void fromJson(ArrayList<HashMap<String, Object>> list) throws IOException {
 		reset();
-		for (HashMap<String, Object> row : list)
+		System.out.println("HASHMAP SIZE: " + list.size());
+		for (HashMap<String, Object> row : list) {
+			for (String key : row.keySet()) {
+				Object val = row.get(key);
+				System.err.println("--- REMOVE ---- READING FROM JSON --> = " + key + " := " + val);
+			}
 			insert(row);
+		}
 	}
 	
 	
@@ -815,11 +830,16 @@ public class FlowSpaceImpl implements FlowSpace {
 	
 	@SuppressWarnings("unchecked")
 	private void insert(HashMap<String, Object> row) throws IOException {
+		System.err.println("----- REMOVE ---- START READING CONFIG");
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet set = null;
 		int sliceid = -1;
 		int ruleid = -1;
+		System.err.println("---- REMOVE ---- READING KEYS FROM ROW ---");
+		for (String key : row.keySet()) {
+			System.err.println("key: " + key);
+		}
 		try {
 			conn = settings.getConnection();
 			ps = conn.prepareStatement(SFLOWMAP, Statement.RETURN_GENERATED_KEYS);
@@ -893,21 +913,42 @@ public class FlowSpaceImpl implements FlowSpace {
 			else
 				ps.setString(17, (String) row.get(NAME));
 			
-			if (ps.executeUpdate() == 0)
-				FVLog.log(LogLevel.WARN, null, "Flow rule insertion failed... siliently.");
+			if (ps.executeUpdate() == 0) {
+				System.err.println("Flow rule insertion failed... NOT that silently");
+				FVLog.log(LogLevel.WARN, null, "Flow rule insertion failed... silently.");
+			}
 			set = ps.getGeneratedKeys();
 			set.next();
 			ruleid = set.getInt(1);
+			System.err.println("----- REMOVE ---- read Rule ID = " + ruleid);
+			System.err.println("----- REMOVE ---- action = " + row.get(ACTION));
+			
+			// ---- TEST ----
+			System.err.println("\n\n\n\n\n\n\n----- REMOVE ---- read existing slices in database!");
+			ps = conn.prepareStatement("SELECT * FROM " + Slice.TSLICE);
+			set = ps.executeQuery();
+			while (set.next()) {
+				System.err.println("----- REMOVE ---- existing slice id = " + set.getString("id"));
+				System.err.println("----- REMOVE ---- existing slice name = " + set.getString("name"));
+			}
+			System.err.println("\n\n\n\n\n\n\n-------");
+			close(set);
+			close(ps);
+//			close(conn);
+			// ---- TEST ----
 			
 			for (HashMap<String, Double> item : ((ArrayList<HashMap<String, Double>>)  row.get(ACTION))) {
 				for (Entry<String, Double> entry : item.entrySet()) {
+					System.err.println("----- REMOVE ---- Looking for Slice ID --> " + SLICEID + ".... " + entry.getKey());
 					ps = conn.prepareStatement(SLICEID);
 					ps.setString(1, entry.getKey());
 					set = ps.executeQuery();
-					if (set.next()) 
+					if (set.next()) {
 						sliceid = set.getInt("id");
-					else {
+						System.err.println("---- REMOVE ---- FOUND slice id!! = " + sliceid);
+					} else {
 						sliceid = -1;
+						System.err.println("---- REMOVE ---- no slice id...");
 						System.err.println("Inserting rule with action on unknown slice " + entry.getKey() + 
 								"; hope you know what you are doing...");
 					}
@@ -918,6 +959,10 @@ public class FlowSpaceImpl implements FlowSpace {
 					
 					if (ps.executeUpdate() == 0)
 						FVLog.log(LogLevel.WARN, null, "Action insertion failed... siliently.");
+					
+					System.err.println("----- REMOVE ---- read entry key = " + entry.getKey());
+					System.err.println("----- REMOVE ---- read slice key = " + sliceid);
+					System.err.println("----- REMOVE ---- read value = " + ((Double) entry.getValue()).intValue());
 				}
 			}
 			if (row.get(QUEUE) == null)
@@ -930,6 +975,7 @@ public class FlowSpaceImpl implements FlowSpace {
 					FVLog.log(LogLevel.WARN, null, "Queue insertion failed... siliently.");
 			}
 		} catch (SQLException e) {
+//				System.err.println("---- REMOVE ---- error: " + e);
 				e.printStackTrace();
 		} finally {
 			close(set);
@@ -941,13 +987,16 @@ public class FlowSpaceImpl implements FlowSpace {
 	
 	
 	private void reset() {
+		System.err.println("--- REMOVE ---- RESETTING DATABASE");
 		Connection conn = null;
 		PreparedStatement ps = null;
 		try {
 			conn = settings.getConnection();
 			ps = conn.prepareStatement(DFLOWMAP);
+			System.err.println("--- REMOVE ---- PREPARE STATEMENT: " + DFLOWMAP);
 			ps.execute();
 			ps = conn.prepareStatement(RESETFLOWTABLE);
+			System.err.println("--- REMOVE ---- PREPARE STATEMENT: " + RESETFLOWTABLE);
 			ps.execute();
 		} catch (SQLException e) {
 			System.err.println("Reseting index on flowtable failed : " + e.getMessage());

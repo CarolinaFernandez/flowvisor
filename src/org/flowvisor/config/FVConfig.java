@@ -101,9 +101,10 @@ public class FVConfig {
 		
 		try {
 			
-			if (config.containsKey(Flowvisor.FLOWVISOR))
+			if (config.containsKey(Flowvisor.FLOWVISOR)) {
+				System.err.println("--- REMOVE ---- READ FROM FILE (key): " + config.get(Flowvisor.FLOWVISOR));
 				FlowvisorImpl.getProxy().fromJson(config.get(Flowvisor.FLOWVISOR));
-			else
+			} else
 				throw new ConfigError("Missing configuration for flowvisor base parameters");
 			
 			if (config.containsKey(Slice.TSLICE))
